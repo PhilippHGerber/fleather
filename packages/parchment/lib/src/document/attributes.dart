@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:collection/collection.dart';
+import 'package:meta/meta.dart';
 
 /// Scope of a style attribute, defines context in which an attribute can be
 /// applied.
@@ -50,6 +51,49 @@ abstract class ParchmentAttributeBuilder<T>
       ParchmentAttribute<T>._(key, scope, value);
 }
 
+/// Data payload for a cloze deletion attribute.
+///
+/// Encapsulates the cloze [groupId] and optional [hint] with value equality
+/// to prevent Quill Delta fragmentation during adjacent character typing.
+@immutable
+class ClozeAttributeData {
+  const ClozeAttributeData({
+    required this.groupId,
+    this.hint,
+  });
+
+  /// The 1-based Cloze Group identifier.
+  final int groupId;
+
+  /// Optional hint displayed to the learner before the gap is revealed.
+  final String? hint;
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'groupId': groupId,
+        if (hint != null && hint!.isNotEmpty) 'hint': hint,
+      };
+
+  factory ClozeAttributeData.fromJson(Map<String, dynamic> json) =>
+      ClozeAttributeData(
+        groupId: (json['groupId'] as num).toInt(),
+        hint: json['hint'] as String?,
+      );
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ClozeAttributeData &&
+          runtimeType == other.runtimeType &&
+          groupId == other.groupId &&
+          hint == other.hint;
+
+  @override
+  int get hashCode => Object.hash(groupId, hint);
+
+  @override
+  String toString() => 'ClozeAttributeData(groupId: $groupId, hint: $hint)';
+}
+
 /// Style attribute applicable to a segment of a Parchment document.
 ///
 /// All supported attributes are available via static fields on this class.
@@ -76,7 +120,9 @@ abstract class ParchmentAttributeBuilder<T>
 ///   * [ParchmentAttribute.inlineCode]
 ///   * [ParchmentAttribute.link]
 ///   * [ParchmentAttribute.heading]
+///   * [ParchmentAttribute.foregroundColor]
 ///   * [ParchmentAttribute.backgroundColor]
+///   * [ParchmentAttribute.cloze]
 ///   * [ParchmentAttribute.checked]
 ///   * [ParchmentAttribute.block]
 ///   * [ParchmentAttribute.direction]
@@ -93,6 +139,7 @@ class ParchmentAttribute<T> implements ParchmentAttributeBuilder<T> {
     ParchmentAttribute.heading.key: ParchmentAttribute.heading,
     ParchmentAttribute.foregroundColor.key: ParchmentAttribute.foregroundColor,
     ParchmentAttribute.backgroundColor.key: ParchmentAttribute.backgroundColor,
+    ParchmentAttribute.cloze.key: ParchmentAttribute.cloze,
     ParchmentAttribute.checked.key: ParchmentAttribute.checked,
     ParchmentAttribute.block.key: ParchmentAttribute.block,
     ParchmentAttribute.direction.key: ParchmentAttribute.direction,
@@ -122,6 +169,10 @@ class ParchmentAttribute<T> implements ParchmentAttributeBuilder<T> {
 
   /// Background color attribute.
   static const backgroundColor = BackgroundColorAttributeBuilder._();
+
+  /// Cloze deletion style attribute.
+  // ignore: const_eval_throws_exception
+  static const cloze = ClozeAttributeBuilder._();
 
   /// Link style attribute.
   // ignore: const_eval_throws_exception
@@ -198,12 +249,45 @@ class ParchmentAttribute<T> implements ParchmentAttributeBuilder<T> {
   static ParchmentAttribute<String> get justify => alignment.justify;
 
   static ParchmentAttribute _fromKeyValue(String key, dynamic value) {
-    if (!_registry.containsKey(key)) {
-      throw ArgumentError.value(
-          key, 'No attribute with key "$key" registered.');
+    if (key == 'cloze') {
+      final clozeData = value == null
+          ? null
+          : value is ClozeAttributeData
+              ? value
+              : ClozeAttributeData.fromJson(
+                  Map<String, dynamic>.from(value as Map));
+      return ParchmentAttribute<ClozeAttributeData>._(
+        key,
+        ParchmentAttributeScope.inline,
+        clozeData,
+      );
     }
-    final builder = _registry[key]!;
-    return builder.withValue(value);
+    final builder = _registry[key];
+    if (builder != null) {
+      return builder.withValue(value);
+    }
+    return ParchmentAttribute._(key, ParchmentAttributeScope.inline, value);
+  }
+
+  /// Creates a style attribute from a [key] and [value] pair.
+  static ParchmentAttribute fromKeyValue(String key, dynamic value) =>
+      _fromKeyValue(key, value);
+
+  /// Creates a custom or dynamic attribute.
+  static ParchmentAttribute<T> custom<T>(
+    String key,
+    T? value, {
+    ParchmentAttributeScope scope = ParchmentAttributeScope.inline,
+  }) {
+    if (key == 'cloze' &&
+        (value is Map || value is ClozeAttributeData || value == null)) {
+      return _fromKeyValue(key, value) as ParchmentAttribute<T>;
+    }
+    final builder = _registry[key];
+    if (builder != null) {
+      return builder.withValue(value) as ParchmentAttribute<T>;
+    }
+    return ParchmentAttribute<T>._(key, scope, value);
   }
 
   const ParchmentAttribute._(this.key, this.scope, this.value);
@@ -245,20 +329,32 @@ class ParchmentAttribute<T> implements ParchmentAttributeBuilder<T> {
   ParchmentAttribute<T> withValue(T? value) =>
       ParchmentAttribute<T>._(key, scope, value);
 
+  static const _equality = DeepCollectionEquality();
+
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
-    if (other is! ParchmentAttribute<T>) return false;
-    return key == other.key && scope == other.scope && value == other.value;
+    if (other is! ParchmentAttribute) return false;
+    return key == other.key &&
+        scope == other.scope &&
+        _equality.equals(value, other.value);
   }
 
   @override
-  int get hashCode => Object.hash(key, scope, value);
+  int get hashCode => Object.hash(key, scope, _equality.hash(value));
 
   @override
   String toString() => '$key: $value';
 
-  Map<String, dynamic> toJson() => <String, dynamic>{key: value};
+  Map<String, dynamic> toJson() {
+    final v = value;
+    final serialized = v is ClozeAttributeData
+        ? v.toJson()
+        : (v is Map || v is List || v is String || v is num || v is bool || v == null)
+            ? v
+            : (v as dynamic).toJson();
+    return <String, dynamic>{key: serialized};
+  }
 }
 
 /// Collection of style attributes.
@@ -383,8 +479,15 @@ class ParchmentStyle {
   /// Returns JSON-serializable representation of this style.
   Map<String, dynamic>? toJson() => _data.isEmpty
       ? null
-      : _data.map<String, dynamic>((String _, ParchmentAttribute value) =>
-          MapEntry<String, dynamic>(value.key, value.value));
+      : _data.map<String, dynamic>((String _, ParchmentAttribute value) {
+          final v = value.value;
+          final serialized = v is ClozeAttributeData
+              ? v.toJson()
+              : (v is Map || v is List || v is String || v is num || v is bool || v == null)
+                  ? v
+                  : (v as dynamic).toJson();
+          return MapEntry<String, dynamic>(value.key, serialized);
+        });
 
   @override
   bool operator ==(Object other) {
@@ -640,4 +743,24 @@ class IndentAttributeBuilder extends ParchmentAttributeBuilder<int> {
     return ParchmentAttribute._(
         key, scope, math.min(_maxIndentationLevel, level));
   }
+}
+
+/// Builder for cloze style attributes.
+class ClozeAttributeBuilder
+    extends ParchmentAttributeBuilder<ClozeAttributeData> {
+  static const _kCloze = 'cloze';
+
+  const ClozeAttributeBuilder._()
+      : super._(_kCloze, ParchmentAttributeScope.inline);
+
+  /// Creates a cloze attribute with specified [groupId] and optional [hint].
+  ParchmentAttribute<ClozeAttributeData> withData({
+    required int groupId,
+    String? hint,
+  }) =>
+      ParchmentAttribute<ClozeAttributeData>._(
+        key,
+        scope,
+        ClozeAttributeData(groupId: groupId, hint: hint),
+      );
 }
