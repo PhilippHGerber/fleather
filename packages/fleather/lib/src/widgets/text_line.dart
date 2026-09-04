@@ -14,6 +14,18 @@ import 'link.dart';
 import 'rich_text_proxy.dart';
 import 'theme.dart';
 
+/// Function signature for decorating inline text spans in [FleatherEditor].
+///
+/// **Caret Alignment Invariant**:
+/// The decorator must ONLY modify styling ([TextStyle]) and attach gesture recognizers.
+/// It must NEVER insert/remove characters or insert [WidgetSpan]s into the text stream,
+/// as altering character counts corrupts caret positioning and selection geometry.
+typedef FleatherTextSpanDecorator = InlineSpan Function(
+  BuildContext context,
+  TextNode node,
+  TextSpan defaultSpan,
+);
+
 /// Line of text in Fleather editor.
 ///
 /// This widget allows to render non-editable line of rich text, but can be
@@ -27,6 +39,7 @@ class TextLine extends StatefulWidget {
   final ValueChanged<String?>? onLaunchUrl;
   final LinkActionPicker linkActionPicker;
   final TextWidthBasis textWidthBasis;
+  final FleatherTextSpanDecorator? textSpanDecorator;
 
   const TextLine({
     super.key,
@@ -37,6 +50,7 @@ class TextLine extends StatefulWidget {
     required this.onLaunchUrl,
     required this.linkActionPicker,
     required this.textWidthBasis,
+    this.textSpanDecorator,
   });
 
   @override
@@ -180,12 +194,16 @@ class _TextLineState extends State<TextLine> {
     final text = segment as TextNode;
     final attrs = text.style;
     final isLink = attrs.contains(ParchmentAttribute.link);
-    return TextSpan(
+    final defaultSpan = TextSpan(
       text: text.value,
       style: _getInlineTextStyle(attrs, widget.node.style, theme),
       recognizer: isLink && canLaunchLinks ? _getRecognizer(segment) : null,
       mouseCursor: isLink && canLaunchLinks ? SystemMouseCursors.click : null,
     );
+    if (widget.textSpanDecorator != null) {
+      return widget.textSpanDecorator!(context, text, defaultSpan);
+    }
+    return defaultSpan;
   }
 
   GestureRecognizer _getRecognizer(Node segment) {
@@ -319,6 +337,14 @@ class _TextLineState extends State<TextLine> {
           nodeStyle.get(ParchmentAttribute.foregroundColor)!;
       if (foregroundColor != ParchmentAttribute.foregroundColor.unset) {
         result = result.copyWith(color: Color(foregroundColor.value!));
+      }
+    }
+    if (nodeStyle.contains(ParchmentAttribute.backgroundColor)) {
+      final backgroundColor =
+          nodeStyle.get(ParchmentAttribute.backgroundColor)!;
+      if (backgroundColor != ParchmentAttribute.backgroundColor.unset) {
+        result = result.copyWith(
+            backgroundColor: Color(backgroundColor.value!));
       }
     }
     return result;

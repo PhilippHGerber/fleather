@@ -4,6 +4,7 @@ import 'package:parchment/parchment.dart';
 import '../services/clipboard_manager.dart';
 import 'controller.dart';
 import 'editor.dart';
+import 'text_line.dart';
 
 class FleatherField extends StatefulWidget {
   /// Controller object which establishes a link between a rich text document
@@ -185,6 +186,8 @@ class FleatherField extends StatefulWidget {
 
   final GlobalKey<EditorState>? editorKey;
 
+  final FleatherTextSpanDecorator? textSpanDecorator;
+
   const FleatherField({
     super.key,
     required this.controller,
@@ -213,6 +216,7 @@ class FleatherField extends StatefulWidget {
     this.spellCheckConfiguration,
     this.embedBuilder = defaultFleatherEmbedBuilder,
     this.clipboardManager = const PlainTextClipboardManager(),
+    this.textSpanDecorator,
   });
 
   @override
@@ -284,6 +288,7 @@ class _FleatherFieldState extends State<FleatherField> {
       spellCheckConfiguration: widget.spellCheckConfiguration,
       contextMenuBuilder: widget.contextMenuBuilder,
       clipboardManager: widget.clipboardManager,
+      textSpanDecorator: widget.textSpanDecorator,
     );
 
     if (widget.toolbar != null) {

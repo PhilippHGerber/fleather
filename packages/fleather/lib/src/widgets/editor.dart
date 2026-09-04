@@ -303,6 +303,15 @@ class FleatherEditor extends StatefulWidget {
 
   final TextSelectionControls? textSelectionControls;
 
+  /// Optional decorator for customizing the inline [TextSpan]s rendered by
+  /// the editor.
+  ///
+  /// **Caret Alignment Invariant**:
+  /// The decorator must ONLY modify styling ([TextStyle]) and attach gesture recognizers.
+  /// It must NEVER insert/remove characters or insert [WidgetSpan]s into the text stream,
+  /// as altering character counts corrupts caret positioning and selection geometry.
+  final FleatherTextSpanDecorator? textSpanDecorator;
+
   const FleatherEditor(
       {super.key,
       required this.controller,
@@ -332,6 +341,7 @@ class FleatherEditor extends StatefulWidget {
       this.contextMenuBuilder = defaultContextMenuBuilder,
       this.embedBuilder = defaultFleatherEmbedBuilder,
       this.linkActionPickerDelegate = defaultLinkActionPickerDelegate,
+      this.textSpanDecorator,
       this.textSelectionControls});
 
   @override
@@ -525,6 +535,7 @@ class _FleatherEditorState extends State<FleatherEditor>
       onSelectionChanged: _handleSelectionChanged,
       selectionControls: textSelectionControls,
       contextMenuBuilder: widget.contextMenuBuilder,
+      textSpanDecorator: widget.textSpanDecorator,
     );
 
     child = FleatherShortcuts(
@@ -619,6 +630,7 @@ class RawEditor extends StatefulWidget {
     this.spellCheckConfiguration,
     this.embedBuilder = defaultFleatherEmbedBuilder,
     this.linkActionPickerDelegate = defaultLinkActionPickerDelegate,
+    this.textSpanDecorator,
   })  : assert(maxHeight == null || maxHeight > 0),
         assert(minHeight == null || minHeight >= 0),
         assert(
@@ -631,6 +643,9 @@ class RawEditor extends StatefulWidget {
 
   /// Controls the document being edited.
   final FleatherController controller;
+
+  /// Optional decorator for customizing the inline [TextSpan]s.
+  final FleatherTextSpanDecorator? textSpanDecorator;
 
   /// Controls whether this editor has keyboard focus.
   final FocusNode? focusNode;
@@ -1847,6 +1862,7 @@ class RawEditorState extends EditorState
               linkActionPicker: _linkActionPicker,
               onLaunchUrl: widget.onLaunchUrl,
               textWidthBasis: widget.textWidthBasis,
+              textSpanDecorator: widget.textSpanDecorator,
             ),
             hasFocus: _hasFocus,
             devicePixelRatio: MediaQuery.of(context).devicePixelRatio,
@@ -1873,6 +1889,7 @@ class RawEditorState extends EditorState
             embedBuilder: widget.embedBuilder,
             linkActionPicker: _linkActionPicker,
             onLaunchUrl: widget.onLaunchUrl,
+            textSpanDecorator: widget.textSpanDecorator,
           ),
         ));
       } else {
