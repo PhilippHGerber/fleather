@@ -23,9 +23,13 @@ List<String> _toggleableStyleKeys = [
 ];
 
 class FleatherController extends ChangeNotifier {
-  FleatherController({ParchmentDocument? document, AutoFormats? autoFormats})
-      : _document = document ?? ParchmentDocument(),
-        _history = HistoryStack.doc(document),
+  FleatherController({
+    ParchmentDocument? document,
+    AutoFormats? autoFormats,
+    HistorySnapshotNormaliser? historyNormaliser,
+  })  : _document = document ?? ParchmentDocument(),
+        _historyNormaliser = historyNormaliser,
+        _history = HistoryStack.doc(document, normalise: historyNormaliser),
         _autoFormats = autoFormats ?? AutoFormats.fallback(),
         _selection = const TextSelection.collapsed(offset: 0) {
     _throttledPush = _throttle(
@@ -41,6 +45,11 @@ class FleatherController extends ChangeNotifier {
 
   // A list of changes applied to this doc. The changes could be undone or redone.
   HistoryStack _history;
+
+  // Normalises every document snapshot before it reaches [_history]. General
+  // and content-agnostic; see [HistorySnapshotNormaliser]. `null` (the
+  // default) leaves history behavior unchanged.
+  final HistorySnapshotNormaliser? _historyNormaliser;
 
   late _Throttled<Delta> _throttledPush;
   Timer? _throttleTimer;
@@ -344,7 +353,7 @@ class FleatherController extends ChangeNotifier {
       document.close();
     }
     _document = ParchmentDocument();
-    _history = HistoryStack.doc(document);
+    _history = HistoryStack.doc(document, normalise: _historyNormaliser);
     _throttledPush = _throttle(
       duration: throttleDuration,
       function: _history.push,

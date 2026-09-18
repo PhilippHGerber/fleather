@@ -29,6 +29,7 @@ class EditableTextBlock extends StatelessWidget {
   final ValueChanged<String?>? onLaunchUrl;
   final EdgeInsets? contentPadding;
   final FleatherTextSpanDecorator? textSpanDecorator;
+  final FleatherTextBackgroundPainter? textBackgroundPainter;
 
   const EditableTextBlock({
     super.key,
@@ -47,6 +48,7 @@ class EditableTextBlock extends StatelessWidget {
     this.onLaunchUrl,
     this.contentPadding,
     this.textSpanDecorator,
+    this.textBackgroundPainter,
   });
 
   @override
@@ -96,6 +98,7 @@ class EditableTextBlock extends StatelessWidget {
           selectionColor: selectionColor,
           enableInteractiveSelection: enableInteractiveSelection,
           hasFocus: hasFocus,
+          textBackgroundPainter: textBackgroundPainter,
         ),
       ));
       index++;

@@ -7,6 +7,8 @@ import 'cursor.dart';
 import 'text_line.dart';
 import 'theme.dart';
 
+export '../rendering/editable_text_line.dart' show FleatherTextBackgroundPainter;
+
 /// Line of editable text in Fleather editor.
 ///
 /// This widget adds editing features to the otherwise static [TextLine] widget.
@@ -33,6 +35,11 @@ class EditableTextLine extends RenderObjectWidget {
   final bool hasFocus;
   final double devicePixelRatio;
 
+  /// Optional hook that paints a background behind this line's text.
+  ///
+  /// See [FleatherTextBackgroundPainter].
+  final FleatherTextBackgroundPainter? textBackgroundPainter;
+
   /// Creates an editable line of text.
   const EditableTextLine({
     super.key,
@@ -47,6 +54,7 @@ class EditableTextLine extends RenderObjectWidget {
     this.leading,
     this.indentWidth = 0.0,
     this.spacing = const VerticalSpacing(),
+    this.textBackgroundPainter,
   });
 
   EdgeInsetsGeometry get _padding => EdgeInsetsDirectional.only(
@@ -72,6 +80,7 @@ class EditableTextLine extends RenderObjectWidget {
       hasFocus: hasFocus,
       devicePixelRatio: devicePixelRatio,
       inlineCodeTheme: theme.inlineCode,
+      textBackgroundPainter: textBackgroundPainter,
     );
   }
 
@@ -89,6 +98,7 @@ class EditableTextLine extends RenderObjectWidget {
     renderObject.hasFocus = hasFocus;
     renderObject.devicePixelRatio = devicePixelRatio;
     renderObject.inlineCodeTheme = theme.inlineCode;
+    renderObject.textBackgroundPainter = textBackgroundPainter;
   }
 }
 

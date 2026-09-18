@@ -11,6 +11,7 @@ export 'src/services/clipboard_manager.dart';
 export 'src/widgets/autoformats.dart';
 export 'src/widgets/controller.dart';
 export 'src/widgets/cursor.dart';
+export 'src/widgets/editable_text_line.dart' show FleatherTextBackgroundPainter;
 export 'src/widgets/editor.dart';
 export 'src/widgets/editor_toolbar.dart';
 export 'src/widgets/field.dart';

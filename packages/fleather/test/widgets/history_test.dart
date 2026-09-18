@@ -50,6 +50,118 @@ void main() {
     });
   });
 
+  group('History stack normalise hook', () {
+    // A stand-in for a real normaliser (e.g. collapsing transient editor-only
+    // state): it strips a marker attribute from any inserted text, so pushes
+    // that only add/remove the marker normalise to the same document as the
+    // one before them.
+    Delta stripMarker(Delta delta) {
+      final result = Delta();
+      for (final op in delta.toList()) {
+        if (op.isInsert && op.data is String) {
+          result.insert(op.data, null);
+        } else {
+          result.push(op);
+        }
+      }
+      return result;
+    }
+
+    test('with no normalise function, behavior is unchanged', () {
+      final stack = HistoryStack(Delta()..insert('Hello\n'));
+      final change = Delta()..insert('Hello world\n');
+      stack.push(change);
+      expect(stack.canUndo, isTrue);
+      expect(stack.undo(), isNotNull);
+      stack.push(change);
+      expect(stack.redo(), isNull);
+    });
+
+    test('a push that normalises to the current state pushes nothing', () {
+      final stack =
+          HistoryStack(Delta()..insert('Hello\n'), normalise: stripMarker);
+
+      // A full document snapshot with a transient marker attribute on
+      // 'Hello'; normalises to the same document as the initial state.
+      final markerOnly = Delta()
+        ..insert('Hello', {'marker': true})
+        ..insert('\n');
+      stack.push(markerOnly);
+
+      expect(stack.canUndo, isFalse);
+      expect(stack.canRedo, isFalse);
+    });
+
+    test('redo survives a push that normalises to the current state', () {
+      final stack =
+          HistoryStack(Delta()..insert('Hello\n'), normalise: stripMarker);
+
+      final realEdit = Delta()..insert('Hello world\n');
+      stack.push(realEdit);
+      expect(stack.canRedo, isFalse);
+
+      stack.undo();
+      expect(stack.canRedo, isTrue);
+
+      // A transient, marker-only push while redo is available must not
+      // discard the redo entry.
+      final markerOnly = Delta()
+        ..insert('Hello', {'marker': true})
+        ..insert('\n');
+      stack.push(markerOnly);
+
+      expect(stack.canRedo, isTrue);
+      final redoDelta = stack.redo();
+      expect(redoDelta, isNotNull);
+    });
+
+    test('undo/redo correctness across a mix of normalised and real edits',
+        () {
+      final stack =
+          HistoryStack(Delta()..insert('Hello\n'), normalise: stripMarker);
+      var document = Delta()..insert('Hello\n');
+
+      // Real edit 1.
+      document = document.compose(Delta()
+        ..retain(5)
+        ..insert(' world'));
+      stack.push(document);
+
+      // Transient marker-only edit: pushes nothing (still normalises to the
+      // same document as after edit 1).
+      final markerChange = Delta()
+        ..retain(11, {'marker': true})
+        ..retain(1);
+      final markedDocument = document.compose(markerChange);
+      stack.push(markedDocument);
+
+      // Real edit 2, composed on top of the (unmarked) document — mirrors
+      // marker being cleared again before the next real edit lands.
+      document = document.compose(Delta()
+        ..retain(11)
+        ..insert('!'));
+      stack.push(document);
+
+      expect(stack.canUndo, isTrue);
+      expect(stack.canRedo, isFalse);
+
+      final undo2 = stack.undo();
+      expect(undo2, isNotNull);
+      expect(stack.canRedo, isTrue);
+
+      final undo1 = stack.undo();
+      expect(undo1, isNotNull);
+      expect(stack.canUndo, isFalse);
+      expect(stack.canRedo, isTrue);
+
+      final redo1 = stack.redo();
+      expect(redo1, isNotNull);
+      final redo2 = stack.redo();
+      expect(redo2, isNotNull);
+      expect(stack.canRedo, isFalse);
+    });
+  });
+
   group('History widget', () {
     testWidgets('undo/redo insertion', (tester) async {
       const initialLength = 'Something in the way mmmmm'.length;

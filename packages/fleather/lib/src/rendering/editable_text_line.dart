@@ -16,6 +16,36 @@ const double _kCursorHeightOffset = 2.0; // pixels
 
 enum TextLineSlot { leading, body }
 
+/// Function signature for a general, content-agnostic hook that paints
+/// backgrounds behind a line of text in [FleatherEditor], such as a rounded
+/// pill behind a run of decorated text.
+///
+/// Called once per line, before that line's text and before its selection
+/// highlight are painted. Fleather's own rounded inline-code background
+/// (see [RenderEditableTextLine._paintTextBackground]) is painted using the
+/// same technique this hook exposes.
+///
+/// [nodes] are the line's text nodes. Each [TextNode.offset] (and
+/// [TextNode.length]) is expressed in line-local coordinates: offset 0 is
+/// the start of the line's text, matching the coordinate space expected by
+/// [getBoxesForRange].
+///
+/// [getBoxesForRange] returns the laid-out [TextBox]es for a [TextRange]
+/// expressed in those same line-local coordinates. A range may yield more
+/// than one box when it wraps across visual lines. The boxes it returns are
+/// relative to the line's text content and must be shifted by [offset] (the
+/// paint offset of the line's text content) before drawing, exactly like
+/// Fleather's own background painting does.
+///
+/// The painter must only draw to [canvas]. It must never alter text layout,
+/// caret offsets, or hit testing.
+typedef FleatherTextBackgroundPainter = void Function(
+  Canvas canvas,
+  Offset offset,
+  List<TextNode> nodes,
+  List<TextBox> Function(TextRange range) getBoxesForRange,
+);
+
 class RenderEditableTextLine extends RenderEditableBox {
   /// Creates new editable paragraph render box.
   RenderEditableTextLine({
@@ -29,6 +59,7 @@ class RenderEditableTextLine extends RenderEditableBox {
     required bool hasFocus,
     required InlineCodeThemeData inlineCodeTheme,
     double devicePixelRatio = 1.0,
+    FleatherTextBackgroundPainter? textBackgroundPainter,
     // Not implemented fields are below:
     ui.BoxHeightStyle selectionHeightStyle = ui.BoxHeightStyle.tight,
     ui.BoxWidthStyle selectionWidthStyle = ui.BoxWidthStyle.tight,
@@ -44,6 +75,7 @@ class RenderEditableTextLine extends RenderEditableBox {
         _enableInteractiveSelection = enableInteractiveSelection,
         _devicePixelRatio = devicePixelRatio,
         _inlineCodeTheme = inlineCodeTheme,
+        _textBackgroundPainter = textBackgroundPainter,
         _hasFocus = hasFocus;
 
   //
@@ -54,6 +86,18 @@ class RenderEditableTextLine extends RenderEditableBox {
     if (_inlineCodeTheme == theme) return;
     _inlineCodeTheme = theme;
     markNeedsLayout();
+  }
+
+  /// Optional hook that paints a background behind this line's text, ahead
+  /// of the text and its selection highlight.
+  ///
+  /// See [FleatherTextBackgroundPainter].
+  FleatherTextBackgroundPainter? _textBackgroundPainter;
+
+  set textBackgroundPainter(FleatherTextBackgroundPainter? value) {
+    if (_textBackgroundPainter == value) return;
+    _textBackgroundPainter = value;
+    markNeedsPaint();
   }
 
   // Start selection implementation
@@ -702,6 +746,17 @@ class RenderEditableTextLine extends RenderEditableBox {
       final parentData = body!.parentData as BoxParentData;
       final effectiveOffset = offset + parentData.offset;
 
+      if (_textBackgroundPainter != null) {
+        final textNodes =
+            node.children.whereType<TextNode>().toList(growable: false);
+        _textBackgroundPainter!(
+          context.canvas,
+          effectiveOffset,
+          textNodes,
+          (range) => _getBoxesForRange(range),
+        );
+      }
+
       for (var item in node.children) {
         if (item is! TextNode) continue;
         _paintTextBackground(context, item, effectiveOffset);
@@ -729,6 +784,15 @@ class RenderEditableTextLine extends RenderEditableBox {
         _paintCursor(context, effectiveOffset);
       }
     }
+  }
+
+  // Returns the laid-out boxes for [range], expressed in line-local text
+  // offsets (the same coordinate space as [TextNode.offset]). Used to give
+  // [_textBackgroundPainter] boxes to paint beneath, without affecting
+  // layout, caret offsets, or hit testing.
+  List<TextBox> _getBoxesForRange(TextRange range) {
+    return body!.getBoxesForSelection(
+        TextSelection(baseOffset: range.start, extentOffset: range.end));
   }
 
   // Paint line background if item is a TextNode and is inline code or has

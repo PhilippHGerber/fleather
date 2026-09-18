@@ -4,6 +4,21 @@ import 'package:parchment/parchment.dart';
 import 'controller.dart';
 import '../util.dart';
 
+/// Function signature for normalising a document snapshot before
+/// [HistoryStack] diffs it against the previous state and pushes an entry.
+///
+/// General and content-agnostic: [HistoryStack] knows nothing about what the
+/// normalisation does. A caller can use it to make transient, non-content
+/// document states (for example an editor-only presentation of otherwise
+/// stored data) invisible to undo/redo, by mapping every such state to the
+/// same normalised snapshot. A push whose normalised snapshot equals the
+/// current normalised state pushes no history entry and leaves any existing
+/// redo entries untouched.
+///
+/// Applied to every snapshot pushed to a [HistoryStack], including the
+/// initial one it is constructed with.
+typedef HistorySnapshotNormaliser = Delta Function(Delta snapshot);
+
 /// Provides undo/redo capabilities for text editing.
 ///
 /// Listens to [controller] as a [ValueNotifier] and saves relevant values for
@@ -74,11 +89,24 @@ class _FleatherHistoryState extends State<FleatherHistory> {
 /// instantiation
 class HistoryStack {
   /// Creates an instance of [HistoryStack].
-  HistoryStack(this._currentState);
+  ///
+  /// If [normalise] is provided, it is applied to [currentState] and to
+  /// every subsequent snapshot passed to [push] before it is diffed against
+  /// the previous state. With no [normalise] function, the stack behaves
+  /// exactly as if snapshots were pushed unchanged.
+  HistoryStack(Delta currentState, {HistorySnapshotNormaliser? normalise})
+      : _normalise = normalise,
+        _currentState = _applyNormalise(normalise, currentState);
 
   /// Creates an instance of [HistoryStack] from a [ParchmentDocument].
-  HistoryStack.doc(ParchmentDocument? doc)
-      : this(doc?.toDelta() ?? ParchmentDocument().toDelta());
+  HistoryStack.doc(ParchmentDocument? doc,
+      {HistorySnapshotNormaliser? normalise})
+      : this(doc?.toDelta() ?? ParchmentDocument().toDelta(),
+            normalise: normalise);
+
+  static Delta _applyNormalise(
+          HistorySnapshotNormaliser? normalise, Delta snapshot) =>
+      normalise == null ? snapshot : normalise(snapshot);
 
   // List of historical changes made to document
   final List<_Change> _list = [];
@@ -86,19 +114,29 @@ class HistoryStack {
   // The index of the current value, or -1 if the list is empty.
   int _currentIndex = -1;
 
+  // Normalises every snapshot before it is diffed and pushed. `null` means
+  // snapshots are used as-is, preserving prior behavior exactly.
+  final HistorySnapshotNormaliser? _normalise;
+
   Delta _currentState;
 
   _Change? get _currentChange => _list.isEmpty ? null : _list[_currentIndex];
 
   /// Add a new document state change to the stack.
+  ///
+  /// [newState] is normalised (if a normalise function was provided) before
+  /// being diffed against the current normalised state. If the normalised
+  /// [newState] equals the current normalised state, nothing is pushed and
+  /// any existing redo entries are left untouched.
   void push(Delta newState) {
-    final redoDelta = _currentState.diff(newState);
+    final normalisedState = _applyNormalise(_normalise, newState);
+    final redoDelta = _currentState.diff(normalisedState);
 
     if (redoDelta.isEmpty) return;
 
     final undoDelta = redoDelta.invert(_currentState);
 
-    _currentState = newState;
+    _currentState = normalisedState;
 
     if (_list.isEmpty) {
       _currentIndex = 0;

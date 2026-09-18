@@ -312,6 +312,13 @@ class FleatherEditor extends StatefulWidget {
   /// as altering character counts corrupts caret positioning and selection geometry.
   final FleatherTextSpanDecorator? textSpanDecorator;
 
+  /// Optional hook for painting a background behind each line's text, ahead
+  /// of the text and its selection highlight.
+  ///
+  /// See [FleatherTextBackgroundPainter]. It must never alter text layout,
+  /// caret offsets, or hit testing.
+  final FleatherTextBackgroundPainter? textBackgroundPainter;
+
   const FleatherEditor(
       {super.key,
       required this.controller,
@@ -342,6 +349,7 @@ class FleatherEditor extends StatefulWidget {
       this.embedBuilder = defaultFleatherEmbedBuilder,
       this.linkActionPickerDelegate = defaultLinkActionPickerDelegate,
       this.textSpanDecorator,
+      this.textBackgroundPainter,
       this.textSelectionControls});
 
   @override
@@ -536,6 +544,7 @@ class _FleatherEditorState extends State<FleatherEditor>
       selectionControls: textSelectionControls,
       contextMenuBuilder: widget.contextMenuBuilder,
       textSpanDecorator: widget.textSpanDecorator,
+      textBackgroundPainter: widget.textBackgroundPainter,
     );
 
     child = FleatherShortcuts(
@@ -631,6 +640,7 @@ class RawEditor extends StatefulWidget {
     this.embedBuilder = defaultFleatherEmbedBuilder,
     this.linkActionPickerDelegate = defaultLinkActionPickerDelegate,
     this.textSpanDecorator,
+    this.textBackgroundPainter,
   })  : assert(maxHeight == null || maxHeight > 0),
         assert(minHeight == null || minHeight >= 0),
         assert(
@@ -646,6 +656,13 @@ class RawEditor extends StatefulWidget {
 
   /// Optional decorator for customizing the inline [TextSpan]s.
   final FleatherTextSpanDecorator? textSpanDecorator;
+
+  /// Optional hook for painting a background behind each line's text, ahead
+  /// of the text and its selection highlight.
+  ///
+  /// See [FleatherTextBackgroundPainter]. It must never alter text layout,
+  /// caret offsets, or hit testing.
+  final FleatherTextBackgroundPainter? textBackgroundPainter;
 
   /// Controls whether this editor has keyboard focus.
   final FocusNode? focusNode;
@@ -1866,6 +1883,7 @@ class RawEditorState extends EditorState
             ),
             hasFocus: _hasFocus,
             devicePixelRatio: MediaQuery.of(context).devicePixelRatio,
+            textBackgroundPainter: widget.textBackgroundPainter,
           ),
         ));
       } else if (node is BlockNode) {
@@ -1890,6 +1908,7 @@ class RawEditorState extends EditorState
             linkActionPicker: _linkActionPicker,
             onLaunchUrl: widget.onLaunchUrl,
             textSpanDecorator: widget.textSpanDecorator,
+            textBackgroundPainter: widget.textBackgroundPainter,
           ),
         ));
       } else {

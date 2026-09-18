@@ -3,6 +3,7 @@ import 'package:parchment/parchment.dart';
 
 import '../services/clipboard_manager.dart';
 import 'controller.dart';
+import 'editable_text_line.dart' show FleatherTextBackgroundPainter;
 import 'editor.dart';
 import 'text_line.dart';
 
@@ -188,6 +189,13 @@ class FleatherField extends StatefulWidget {
 
   final FleatherTextSpanDecorator? textSpanDecorator;
 
+  /// Optional hook for painting a background behind each line's text, ahead
+  /// of the text and its selection highlight.
+  ///
+  /// See [FleatherTextBackgroundPainter]. It must never alter text layout,
+  /// caret offsets, or hit testing.
+  final FleatherTextBackgroundPainter? textBackgroundPainter;
+
   const FleatherField({
     super.key,
     required this.controller,
@@ -217,6 +225,7 @@ class FleatherField extends StatefulWidget {
     this.embedBuilder = defaultFleatherEmbedBuilder,
     this.clipboardManager = const PlainTextClipboardManager(),
     this.textSpanDecorator,
+    this.textBackgroundPainter,
   });
 
   @override
@@ -289,6 +298,7 @@ class _FleatherFieldState extends State<FleatherField> {
       contextMenuBuilder: widget.contextMenuBuilder,
       clipboardManager: widget.clipboardManager,
       textSpanDecorator: widget.textSpanDecorator,
+      textBackgroundPainter: widget.textBackgroundPainter,
     );
 
     if (widget.toolbar != null) {
