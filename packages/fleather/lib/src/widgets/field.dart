@@ -189,6 +189,9 @@ class FleatherField extends StatefulWidget {
 
   final FleatherTextSpanDecorator? textSpanDecorator;
 
+  /// Optional callback for configuring inline embed layout.
+  final FleatherEmbedConfigCallback? embedConfig;
+
   /// Optional hook for painting a background behind each line's text, ahead
   /// of the text and its selection highlight.
   ///
@@ -226,6 +229,7 @@ class FleatherField extends StatefulWidget {
     this.clipboardManager = const PlainTextClipboardManager(),
     this.textSpanDecorator,
     this.textBackgroundPainter,
+    this.embedConfig,
   });
 
   @override
@@ -299,6 +303,7 @@ class _FleatherFieldState extends State<FleatherField> {
       clipboardManager: widget.clipboardManager,
       textSpanDecorator: widget.textSpanDecorator,
       textBackgroundPainter: widget.textBackgroundPainter,
+      embedConfig: widget.embedConfig,
     );
 
     if (widget.toolbar != null) {

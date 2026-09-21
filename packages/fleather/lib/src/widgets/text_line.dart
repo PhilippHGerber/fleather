@@ -40,6 +40,7 @@ class TextLine extends StatefulWidget {
   final LinkActionPicker linkActionPicker;
   final TextWidthBasis textWidthBasis;
   final FleatherTextSpanDecorator? textSpanDecorator;
+  final FleatherEmbedConfigCallback? embedConfig;
 
   const TextLine({
     super.key,
@@ -51,6 +52,7 @@ class TextLine extends StatefulWidget {
     required this.linkActionPicker,
     required this.textWidthBasis,
     this.textSpanDecorator,
+    this.embedConfig,
   });
 
   @override
@@ -188,8 +190,12 @@ class _TextLineState extends State<TextLine> {
 
   InlineSpan _segmentToTextSpan(Node segment, FleatherThemeData theme) {
     if (segment is EmbedNode) {
+      final config = widget.embedConfig?.call(context, segment);
       return WidgetSpan(
-          child: EmbedProxy(child: widget.embedBuilder(context, segment)));
+        child: EmbedProxy(child: widget.embedBuilder(context, segment)),
+        alignment: config?.alignment ?? PlaceholderAlignment.bottom,
+        baseline: config?.baseline,
+      );
     }
     final text = segment as TextNode;
     final attrs = text.style;

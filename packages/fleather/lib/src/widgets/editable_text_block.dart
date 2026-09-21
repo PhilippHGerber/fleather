@@ -30,6 +30,7 @@ class EditableTextBlock extends StatelessWidget {
   final EdgeInsets? contentPadding;
   final FleatherTextSpanDecorator? textSpanDecorator;
   final FleatherTextBackgroundPainter? textBackgroundPainter;
+  final FleatherEmbedConfigCallback? embedConfig;
 
   const EditableTextBlock({
     super.key,
@@ -49,6 +50,7 @@ class EditableTextBlock extends StatelessWidget {
     this.contentPadding,
     this.textSpanDecorator,
     this.textBackgroundPainter,
+    this.embedConfig,
   });
 
   @override
@@ -92,6 +94,7 @@ class EditableTextBlock extends StatelessWidget {
             onLaunchUrl: onLaunchUrl,
             textWidthBasis: textWidthBasis,
             textSpanDecorator: textSpanDecorator,
+            embedConfig: embedConfig,
           ),
           cursorController: cursorController,
           selection: selection,

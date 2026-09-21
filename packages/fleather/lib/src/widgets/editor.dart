@@ -99,6 +99,42 @@ Widget defaultFleatherEmbedBuilder(BuildContext context, EmbedNode node) {
       'embedBuilder property of FleatherEditor or FleatherField widgets.');
 }
 
+/// Configuration for inline embed placeholder alignment and baseline.
+class FleatherSpanEmbedConfig {
+  /// How the placeholder aligns vertically with the surrounding text.
+  ///
+  /// Defaults to [PlaceholderAlignment.bottom].
+  final PlaceholderAlignment alignment;
+
+  /// The [TextBaseline] to align against when using [PlaceholderAlignment.baseline],
+  /// [PlaceholderAlignment.aboveBaseline], or [PlaceholderAlignment.belowBaseline].
+  final TextBaseline? baseline;
+
+  const FleatherSpanEmbedConfig({
+    this.alignment = PlaceholderAlignment.bottom,
+    this.baseline,
+  }) : assert(
+          alignment != PlaceholderAlignment.baseline &&
+                  alignment != PlaceholderAlignment.aboveBaseline &&
+                  alignment != PlaceholderAlignment.belowBaseline ||
+              baseline != null,
+          'baseline must not be null when alignment is $alignment',
+        );
+
+  /// Convenience constructor configuring [PlaceholderAlignment.baseline] with
+  /// [TextBaseline.alphabetic] by default.
+  const FleatherSpanEmbedConfig.baseline({
+    this.baseline = TextBaseline.alphabetic,
+  })  : alignment = PlaceholderAlignment.baseline,
+        assert(baseline != null);
+}
+
+/// Function signature for configuring inline embed layout in [FleatherEditor].
+typedef FleatherEmbedConfigCallback = FleatherSpanEmbedConfig? Function(
+  BuildContext context,
+  EmbedNode node,
+);
+
 /// Widget for editing rich text documents.
 class FleatherEditor extends StatefulWidget {
   /// Controller object which establishes a link between a rich text document
@@ -312,6 +348,9 @@ class FleatherEditor extends StatefulWidget {
   /// as altering character counts corrupts caret positioning and selection geometry.
   final FleatherTextSpanDecorator? textSpanDecorator;
 
+  /// Optional callback for configuring inline embed layout (e.g. baseline alignment).
+  final FleatherEmbedConfigCallback? embedConfig;
+
   /// Optional hook for painting a background behind each line's text, ahead
   /// of the text and its selection highlight.
   ///
@@ -350,6 +389,7 @@ class FleatherEditor extends StatefulWidget {
       this.linkActionPickerDelegate = defaultLinkActionPickerDelegate,
       this.textSpanDecorator,
       this.textBackgroundPainter,
+      this.embedConfig,
       this.textSelectionControls});
 
   @override
@@ -545,6 +585,7 @@ class _FleatherEditorState extends State<FleatherEditor>
       contextMenuBuilder: widget.contextMenuBuilder,
       textSpanDecorator: widget.textSpanDecorator,
       textBackgroundPainter: widget.textBackgroundPainter,
+      embedConfig: widget.embedConfig,
     );
 
     child = FleatherShortcuts(
@@ -641,6 +682,7 @@ class RawEditor extends StatefulWidget {
     this.linkActionPickerDelegate = defaultLinkActionPickerDelegate,
     this.textSpanDecorator,
     this.textBackgroundPainter,
+    this.embedConfig,
   })  : assert(maxHeight == null || maxHeight > 0),
         assert(minHeight == null || minHeight >= 0),
         assert(
@@ -656,6 +698,9 @@ class RawEditor extends StatefulWidget {
 
   /// Optional decorator for customizing the inline [TextSpan]s.
   final FleatherTextSpanDecorator? textSpanDecorator;
+
+  /// Optional callback for configuring inline embed layout.
+  final FleatherEmbedConfigCallback? embedConfig;
 
   /// Optional hook for painting a background behind each line's text, ahead
   /// of the text and its selection highlight.
@@ -1880,6 +1925,7 @@ class RawEditorState extends EditorState
               onLaunchUrl: widget.onLaunchUrl,
               textWidthBasis: widget.textWidthBasis,
               textSpanDecorator: widget.textSpanDecorator,
+              embedConfig: widget.embedConfig,
             ),
             hasFocus: _hasFocus,
             devicePixelRatio: MediaQuery.of(context).devicePixelRatio,
@@ -1909,6 +1955,7 @@ class RawEditorState extends EditorState
             onLaunchUrl: widget.onLaunchUrl,
             textSpanDecorator: widget.textSpanDecorator,
             textBackgroundPainter: widget.textBackgroundPainter,
+            embedConfig: widget.embedConfig,
           ),
         ));
       } else {
