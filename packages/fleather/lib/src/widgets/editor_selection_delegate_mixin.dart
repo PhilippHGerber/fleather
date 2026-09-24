@@ -28,6 +28,12 @@ mixin RawEditorStateSelectionDelegateMixin on EditorState
   @override
   void bringIntoView(TextPosition position) {
     final localRect = renderEditor.getLocalRectForCaret(position);
+    // A non-scrollable editor never attaches its scroll controller; enclosing
+    // scroll views still reveal the caret.
+    if (!scrollController.hasClients) {
+      renderEditor.showOnScreen(rect: localRect);
+      return;
+    }
     final targetOffset = _getOffsetToRevealCaret(localRect, position);
 
     scrollController.jumpTo(targetOffset.offset);
